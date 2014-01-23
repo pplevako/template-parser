@@ -4,14 +4,10 @@
 var render = require('./render');
 
 var template = "<table>\n" +
-  //TODO: bugged
   "{# This is a comment#}" +
   "{{category}}\n " +
   "{% table %}" +
   "   <tr>\n" +
-//    "{% test %}" +
-//    " {{ . }} " +
-//    "{% / %}" +
   "      {% . %}" +
   "<td>{{ . }}  {{ . }} {{category}}</td>" +
   "{% / %}" +
