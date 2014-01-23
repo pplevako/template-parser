@@ -1,10 +1,13 @@
 {
-  "name": "application-name",
+  "name": "template-parser",
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "jasmine-node spec"
   },
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
+    "jasmine-node": "~1.13.0"
   }
 }
