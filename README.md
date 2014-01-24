@@ -4,8 +4,7 @@ template-parser
 
 Подготовка
 -------------------------
-Для работы парсера нужна установленная node.js:
-https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager.
+Для работы парсера нужна [установленная node.js](https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager).
 После этого в директории проекта достаточно выполнить:
 
     node app.js
