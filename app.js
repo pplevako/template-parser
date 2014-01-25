@@ -3,11 +3,8 @@
  */
 var render = require('./render');
 
-//var test = ".";
-//
-//var res = test.split(':');
-
 var template =
+  "{{ capitals1 : default(megatext)  :   capitalize }}\n" +
   "{{ capitals:capitalize }}\n" +
   "{{ wowSoManySpaces:trim:upper }}\n" +
   "{{ lower:lower }}\n" +
@@ -19,7 +16,7 @@ var template =
   "<td>" +
   "{{fruits:upper}}" +
   "{% nested %}" +
-  " {{ .:upper }}" +
+  " {{ . : default (\"{{ are %}\") : upper }}" +
   "{% / %}" +
   " {{ . }}" +
   "</td>" +
@@ -36,7 +33,7 @@ var data = {
     [1, 2, 3],
     [4, 5, 6]
   ],
-  nested: ["are", "nested"],
+  nested: ["", "nested"],
   lower: "LOWER",
   wowSoManySpaces: "  spaaaaace  ",
   capitals: "london paris oslo"

@@ -22,6 +22,11 @@ Lexer.prototype.tokenize = function () {
   var tokens = [];
   var result;
 
+  var addText = function(text) {
+    if (text)
+      tokens.push(new Token(grammar.tokens.TEXT, text));
+  }
+
   while (result = this.regex.exec(this.input)) {
     // Searching for a matching rule
     for (var i = 0; i < this.rules.length; i++) {
@@ -29,14 +34,14 @@ Lexer.prototype.tokenize = function () {
       if (result[i + 1] !== undefined) {
         var value = result[0];
         var text = this.input.substr(lastIndex, result.index - lastIndex);
-        tokens.push(new Token(grammar.tokens.TEXT, text));
+        addText(text);
         tokens.push(new Token(this.rules[i].getTokenName(), value));
         lastIndex = result.index + value.length;
       }
     }
   }
   var text = this.input.substr(lastIndex);
-  tokens.push(new Token(grammar.tokens.TEXT, text));
+  addText(text);
 
   return tokens;
 }

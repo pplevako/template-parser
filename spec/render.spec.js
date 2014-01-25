@@ -56,4 +56,20 @@ describe("A render function", function () {
     expect(result).toEqual(expected);
   });
 
+  it("matches :default() filter", function () {
+    var data = { ok: "ok" };
+    var template = "{{ missingValue : default ({{are here!}}) }} {{ ok: default (not replaced)}}";
+
+    var result = render(template, data);
+    expect(result).toEqual("{{are here!}} ok");
+  });
+
+  it("matches any filters combined", function () {
+    var data = { hello: " world  " };
+    var template = "{{ hello : upper:capitalize:trim }} {{ hello : capitalize:trim }}";
+
+    var result = render(template, data);
+    expect(result).toEqual("WORLD World");
+  });
+
 });

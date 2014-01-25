@@ -6,51 +6,21 @@
 
 var grammar = require('./grammar');
 var Lexer = require('./lexer');
-var filters = require('./filters');
+var filterFuncs = require('./filters');
 var Stack = require('./stack');
+var util = require('util');
 
-var applyFilters = function(value, filtersKeys) {
-  for (var i = 0; i < filtersKeys.length; i++) {
-    var filter = filters[filtersKeys[i]];
-    value = filter(value);
-  }
-  return value;
-}
+var render = function (template, data) {
+  //Remove comments
+  template = template.replace(/\{#[^]*?#\}/g, '');
+  var lexer = new Lexer(grammar.rules, template);
+  var tokens = lexer.tokenize();
+  tokens = prettifyTokens(tokens);
+  var parser = new Parser(tokens, data);
+  return parser.parse();
+};
 
-var BlockNode = function (data) {
-  this.children = [];
-  this.data = data;
-}
-
-BlockNode.prototype.addChild = function (child) {
-  this.children.push(child);
-}
-
-var TextNode = function (value) {
-  this.value = value;
-}
-TextNode.prototype.evaluate = function(_) {
-  return this.value;
-}
-
-var SubstituteNode = function (value, dataObj) {
-  var fields = value.split(':');
-  value = dataObj[fields[0]];
-  this.value = applyFilters(value, fields.slice(1));
-}
-
-SubstituteNode.prototype.evaluate = function(_) {
-  return this.value;
-}
-
-var PlaceholderNode = function (value) {
-  var fields = value.split(':');
-  this.filters = fields.slice(1);
-}
-
-PlaceholderNode.prototype.evaluate = function(value) {
-  return applyFilters(value, this.filters);
-}
+module.exports = render;
 
 var Parser = function (tokens, data) {
   this.tokens = tokens;
@@ -64,22 +34,11 @@ Parser.prototype.parseTree = function (nodes, currentData, listAcc) {
     if (node instanceof BlockNode) {
       var data = node.data ? node.data : currentData;
       data.forEach(function (value) {
-        self.parseTree(node.children, value, listAcc);
+        self.parseTree(node.children(), value, listAcc);
       });
     } else {
       listAcc.push(node.evaluate(currentData));
     }
-
-
-//    else if (node instanceof PlaceholderNode) {
-//      listAcc.push(currentData);
-//    }
-//    else if (node instanceof SubstituteNode) {
-//      listAcc.push(node.evaluate());
-//    }
-//    else if (node instanceof TextNode) {
-//      listAcc.push(node.value);
-//    }
   }
 };
 
@@ -105,15 +64,30 @@ Parser.prototype.parse = function () {
         stack.push(block);
         break;
 
-      case grammar.tokens.BLOCK_PLACEHOLDER:
-        var placeholder = new PlaceholderNode(token.value);
+      case grammar.tokens.PLACEHOLDER_BEGIN:
+        var placeholder = new PlaceholderNode();
         stack.peek().addChild(placeholder);
+        stack.push(placeholder);
         break;
 
-      case grammar.tokens.SUBSTITUTE:
-//        var data = self.data[token.value];
+      case grammar.tokens.SUBSTITUTE_BEGIN:
         var substitute = new SubstituteNode(token.value, self.data);
         stack.peek().addChild(substitute);
+        stack.push(substitute);
+        break;
+
+      case grammar.tokens.FILTER:
+        var filter = new FilterNode(token.value);
+        stack.peek().addChild(filter);
+        break;
+
+      case grammar.tokens.FILTER_DEFAULT:
+        var filter = new FilterNodeDefault(token.value);
+        stack.peek().addChild(filter);
+        break;
+
+      case grammar.tokens.BRACKET_END:
+        stack.pop();
         break;
 
       case grammar.tokens.TEXT:
@@ -125,33 +99,95 @@ Parser.prototype.parse = function () {
         //TODO add syntax check
         var block = stack.pop();
         break;
-
     }
   });
   var listAcc = [];
-  this.parseTree(root.children, null, listAcc);
+  this.parseTree(root.children(), null, listAcc);
   return listAcc.join('');
 };
 
 var prettifyTokens = function (tokens) {
   tokens.forEach(function (token) {
-    if (token.name === grammar.tokens.BLOCK_BEGIN
-      || token.name === grammar.tokens.SUBSTITUTE
-      || token.name === grammar.tokens.BLOCK_PLACEHOLDER) {
-      token.value = token.value.replace(/^\{(%|\{)\s*|\s*(%|\})\}$/g, '');
+    if (token.name === grammar.tokens.TEXT)
+      return;
+    if (token.name === grammar.tokens.FILTER_DEFAULT) {
+      var match = token.value.match(/\s*:\s*default\s*\((.*)\)/);
+      token.value = match[1];
+    } else {
+      token.value = token.value.replace(/[%,\s,\{,\},:]*/g, '');
     }
   });
   return tokens;
 };
 
-var render = function (template, data) {
-  //Remove comments
-  template = template.replace(/\{#[^]*?#\}/g, '');
-  var lexer = new Lexer(grammar.rules, template);
-  var tokens = lexer.tokenize();
-  tokens = prettifyTokens(tokens);
-  var parser = new Parser(tokens, data);
-  return parser.parse();
-};
+var TreeNode = function() {
+  this.childNodes = [];
+}
 
-module.exports = render;
+TreeNode.prototype.addChild = function(childNode) {
+  this.childNodes.push(childNode);
+}
+
+TreeNode.prototype.children = function() {
+  return this.childNodes;
+}
+
+var BlockNode = function (data) {
+  BlockNode.super_.call(this);
+  this.data = data;
+}
+util.inherits(BlockNode, TreeNode);
+
+var TextNode = function (value) {
+  this.value = value;
+}
+
+TextNode.prototype.evaluate = function(_) {
+  return this.value;
+}
+
+var SubstituteNode = function (value, dataObj) {
+  SubstituteNode.super_.call(this);
+  this.value = dataObj[value];
+}
+util.inherits(SubstituteNode, TreeNode);
+
+SubstituteNode.prototype.evaluate = function(_) {
+  return applyFilters(this.value, this.children());
+}
+
+var PlaceholderNode = function () {
+  PlaceholderNode.super_.call(this);
+}
+util.inherits(PlaceholderNode, TreeNode);
+
+PlaceholderNode.prototype.evaluate = function(value) {
+  return applyFilters(value, this.children());
+}
+
+var FilterNodeDefault = function(defaultValue) {
+  this.defaultValue = defaultValue;
+}
+
+FilterNodeDefault.prototype.evaluate = function(value) {
+  if (!value)
+    return this.defaultValue;
+  return value;
+}
+
+var FilterNode = function(filterKey) {
+  this.filterKey = filterKey;
+}
+
+FilterNode.prototype.evaluate = function(value) {
+  var filterFunc = filterFuncs[this.filterKey];
+  return filterFunc(value);
+}
+
+var applyFilters = function(value, filters) {
+  for (var i = 0; i < filters.length; i++) {
+    var filter = filters[i];
+    value = filter.evaluate(value);
+  }
+  return value;
+}
