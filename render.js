@@ -6,27 +6,20 @@
 
 var grammar = require('./grammar');
 var Lexer = require('./lexer');
+var filters = require('./filters');
+var Stack = require('./stack');
 
-var Stack = function () {
-  this.array = [];
-}
-
-Stack.prototype.pop = function () {
-  return this.array.pop();
-}
-
-Stack.prototype.push = function (element) {
-  return this.array.push(element);
-}
-
-Stack.prototype.peek = function () {
-  return this.array[this.array.length - 1];
+var applyFilters = function(value, filtersKeys) {
+  for (var i = 0; i < filtersKeys.length; i++) {
+    var filter = filters[filtersKeys[i]];
+    value = filter(value);
+  }
+  return value;
 }
 
 var BlockNode = function (data) {
   this.children = [];
   this.data = data;
-//  this.type = type;
 }
 
 BlockNode.prototype.addChild = function (child) {
@@ -36,21 +29,28 @@ BlockNode.prototype.addChild = function (child) {
 var TextNode = function (value) {
   this.value = value;
 }
-
-var SubstituteNode = function (data) {
-  this.data = data;
+TextNode.prototype.evaluate = function(_) {
+  return this.value;
 }
 
-var PlaceholderNode = function () {
-
+var SubstituteNode = function (value, dataObj) {
+  var fields = value.split(':');
+  value = dataObj[fields[0]];
+  this.value = applyFilters(value, fields.slice(1));
 }
-//
-//var NODE_TYPE = {
-//  BLOCK: "BLOCK",
-//  TEXT: "TEXT",
-//  BLOCK_PLACEHOLDER: "BLOCK_PLACEHOLDER",
-//  SUBSTITUTE: "SUBSTITUTE"
-//}
+
+SubstituteNode.prototype.evaluate = function(_) {
+  return this.value;
+}
+
+var PlaceholderNode = function (value) {
+  var fields = value.split(':');
+  this.filters = fields.slice(1);
+}
+
+PlaceholderNode.prototype.evaluate = function(value) {
+  return applyFilters(value, this.filters);
+}
 
 var Parser = function (tokens, data) {
   this.tokens = tokens;
@@ -66,16 +66,20 @@ Parser.prototype.parseTree = function (nodes, currentData, listAcc) {
       data.forEach(function (value) {
         self.parseTree(node.children, value, listAcc);
       });
+    } else {
+      listAcc.push(node.evaluate(currentData));
     }
-    else if (node instanceof PlaceholderNode) {
-      listAcc.push(currentData);
-    }
-    else if (node instanceof SubstituteNode) {
-      listAcc.push(node.data);
-    }
-    else if (node instanceof TextNode) {
-      listAcc.push(node.value);
-    }
+
+
+//    else if (node instanceof PlaceholderNode) {
+//      listAcc.push(currentData);
+//    }
+//    else if (node instanceof SubstituteNode) {
+//      listAcc.push(node.evaluate());
+//    }
+//    else if (node instanceof TextNode) {
+//      listAcc.push(node.value);
+//    }
   }
 };
 
@@ -102,13 +106,13 @@ Parser.prototype.parse = function () {
         break;
 
       case grammar.tokens.BLOCK_PLACEHOLDER:
-        var placeholder = new PlaceholderNode();
+        var placeholder = new PlaceholderNode(token.value);
         stack.peek().addChild(placeholder);
         break;
 
       case grammar.tokens.SUBSTITUTE:
-        var data = self.data[token.value];
-        var substitute = new SubstituteNode(data);
+//        var data = self.data[token.value];
+        var substitute = new SubstituteNode(token.value, self.data);
         stack.peek().addChild(substitute);
         break;
 
@@ -131,7 +135,9 @@ Parser.prototype.parse = function () {
 
 var prettifyTokens = function (tokens) {
   tokens.forEach(function (token) {
-    if (token.name === grammar.tokens.BLOCK_BEGIN || token.name === grammar.tokens.SUBSTITUTE) {
+    if (token.name === grammar.tokens.BLOCK_BEGIN
+      || token.name === grammar.tokens.SUBSTITUTE
+      || token.name === grammar.tokens.BLOCK_PLACEHOLDER) {
       token.value = token.value.replace(/^\{(%|\{)\s*|\s*(%|\})\}$/g, '');
     }
   });

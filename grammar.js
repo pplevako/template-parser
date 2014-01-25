@@ -18,12 +18,15 @@ var tokens = {
   BLOCK_END: 'BLOCK_END'
 };
 
+var spaces = '\\s*';
+var word = '[a-zA-Z_]+\\w*';
+var filters = '(?::' + word + '|:default\\(' + word + '\\))*';
 var rules = [
-  new Rule(tokens.SUBSTITUTE, '\\{\\{\\s*[a-zA-Z_]+[a-zA-Z0-9_]*\\s*\\}\\}'),
-  new Rule(tokens.BLOCK_BEGIN, '\\{%\\s*[a-zA-Z_]+[a-zA-Z0-9_]*\\s*%\\}'),
+  new Rule(tokens.SUBSTITUTE, '\\{\\{' + spaces + word + filters + spaces + '\\}\\}'),
+  new Rule(tokens.BLOCK_BEGIN, '\\{%\\s*' + word +'\\s*%\\}'),
   new Rule(tokens.BLOCK_NEST, '\\{%\\s*\\.*\\s*%\\}'),
-  new Rule(tokens.BLOCK_PLACEHOLDER, '\\{\\{\\s*\\.*\\s*\\}\\}'),
-  new Rule(tokens.BLOCK_END, '\\{%\\s*\\/\\s*%\\}'),
+  new Rule(tokens.BLOCK_PLACEHOLDER, '\\{\\{'+ spaces +'\\.' + filters + spaces +'\\}\\}'),
+  new Rule(tokens.BLOCK_END, '\\{%\\s*\\/\\s*%\\}')
 ];
 
 exports.tokens = tokens;

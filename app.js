@@ -3,15 +3,23 @@
  */
 var render = require('./render');
 
-var template = "<table>\n" +
+//var test = ".";
+//
+//var res = test.split(':');
+
+var template =
+  "{{ capitals:capitalize }}\n" +
+  "{{ wowSoManySpaces:trim:upper }}\n" +
+  "{{ lower:lower }}\n" +
+  "<table>\n" +
   "{# This is a comment#}" +
   "{% table %}" +
   "  <tr>\n" +
   "    {% . %}" +
   "<td>" +
-  "{{fruits}}" +
+  "{{fruits:upper}}" +
   "{% nested %}" +
-  " {{ . }}" +
+  " {{ .:upper }}" +
   "{% / %}" +
   " {{ . }}" +
   "</td>" +
@@ -28,7 +36,10 @@ var data = {
     [1, 2, 3],
     [4, 5, 6]
   ],
-  nested: ["are", "nested"]
+  nested: ["are", "nested"],
+  lower: "LOWER",
+  wowSoManySpaces: "  spaaaaace  ",
+  capitals: "london paris oslo"
 };
 
 var result = render(template, data);
